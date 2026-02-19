@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-UPS Stewart Platform Calculator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+        
+        :root {
+            --primary: #00d9ff;
+            --secondary: #ff00ea;
+            --accent: #ffea00;
+            --dark: #0a0e27;
+            --darker: #050814;
+            --light: #e0f7ff;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --shadow: rgba(0, 217, 255, 0.2);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #1a1042 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--glass-border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+            z-index: 0;
+            animation: gridMove 20s linear infinite;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            box-shadow: 0 0 10px var(--primary);
+            animation: float 15s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+        
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: slideDown 0.8s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 30px var(--shadow);
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            color: var(--primary);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 30px;
+            animation: fadeIn 1s ease-out 0.3s both;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .panel:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 32px var(--shadow);
+        }
+        
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-title::before {
+            content: '▸';
+            color: var(--accent);
+            font-size: 1.2em;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .input-field {
+            position: relative;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        
+        input[type="number"],
+        input[type="range"] {
+            width: 100%;
+            background: rgba(0, 217, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--light);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--shadow);
+            background: rgba(0, 217, 255, 0.1);
+        }
+        
+        input[type="range"] {
+            padding: 0;
+            height: 6px;
+            cursor: pointer;
+            appearance: none;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--primary);
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px var(--primary);
+        }
+        
+        .slider-value {
+            display: inline-block;
+            background: var(--glass);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-top: 5px;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        button {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 15px 30px;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            background: var(--glass);
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: var(--primary);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+            z-index: -1;
+        }
+        
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        button:hover {
+            color: var(--dark);
+            border-color: var(--primary);
+            box-shadow: 0 0 30px var(--shadow);
+        }
+        
+        button.secondary {
+            border-color: var(--glass-border);
+            color: var(--light);
+        }
+        
+        button.secondary::before {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        button.secondary:hover {
+            border-color: var(--light);
+            color: var(--light);
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(255, 0, 234, 0.1));
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            animation: slideIn 0.5s ease-out both;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .result-card:nth-child(1) { animation-delay: 0.1s; }
+        .result-card:nth-child(2) { animation-delay: 0.2s; }
+        .result-card:nth-child(3) { animation-delay: 0.3s; }
+        .result-card:nth-child(4) { animation-delay: 0.4s; }
+        .result-card:nth-child(5) { animation-delay: 0.5s; }
+        .result-card:nth-child(6) { animation-delay: 0.6s; }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px var(--shadow);
+            border-color: var(--accent);
+        }
+        
+        .result-label {
+            font-size: 0.85rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .result-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--light);
+            text-shadow: 0 0 10px var(--primary);
+        }
+        
+        .result-unit {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-left: 5px;
+        }
+        
+        #canvas-container {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            overflow: hidden;
+            height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .matrix-display {
+            background: var(--glass);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        
+        .matrix-title {
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.9rem;
+        }
+        
+        .matrix-container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .matrix-section {
+            flex: 1;
+            min-width: 280px;
+        }
+        
+        .matrix-label {
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .matrix {
+            display: grid;
+            gap: 2px;
+            background: rgba(0, 217, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+        }
+        
+        .matrix-4x4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        
+        .matrix-3x3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .matrix-cell {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--light);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        
+        .vector-display {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(0, 217, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+        }
+        
+        .vector-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .vector-label {
+            color: var(--accent);
+            min-width: 20px;
+            font-weight: 700;
+        }
+        
+        .vector-value {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 15px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            flex: 1;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .info-banner {
+            background: linear-gradient(90deg, rgba(0, 217, 255, 0.1), rgba(255, 0, 234, 0.1));
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .info-icon {
+            font-size: 1.5rem;
+            color: var(--accent);
+        }
+        
+        .info-text {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+        
+        .spinner {
+            border: 3px solid var(--glass-border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            opacity: 0.6;
+            font-size: 0.85rem;
+        }
+        
+        /* Preset buttons */
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-btn {
+            padding: 10px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating particles -->
+    <script>
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            document.body.appendChild(particle);
+        }
+    </script>
+
+    <div class="container">
+        <header>
+            <h1>6-UPS STEWART PLATFORM</h1>
+            <div class="subtitle">Inverse Kinematics Calculator</div>
+        </header>
+
+        <div class="main-grid">
+            <!-- Input Panel -->
+            <div>
+                <div class="panel">
+                    <div class="panel-title">Position Controls</div>
+                    
+                    <!-- Presets -->
+                    <div class="presets">
+                        <button class="preset-btn" onclick="loadPreset('neutral')">Neutral</button>
+                        <button class="preset-btn" onclick="loadPreset('raised')">Raised</button>
+                        <button class="preset-btn" onclick="loadPreset('tilted')">Tilted</button>
+                        <button class="preset-btn" onclick="loadPreset('combined')">Combined</button>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label style="margin-bottom: 15px;">Translation (mm)</label>
+                        <div class="input-row">
+                            <div class="input-field">
+                                <label>X Position</label>
+                                <input type="number" id="x" value="0" min="-80" max="80" step="1" oninput="calculate()">
+                                <input type="range" id="x-slider" min="-80" max="80" step="1" value="0" oninput="syncInput('x', this.value)">
+                                <div class="slider-value" id="x-value">0 mm</div>
+                            </div>
+                            <div class="input-field">
+                                <label>Y Position</label>
+                                <input type="number" id="y" value="0" min="-80" max="80" step="1" oninput="calculate()">
+                                <input type="range" id="y-slider" min="-80" max="80" step="1" value="0" oninput="syncInput('y', this.value)">
+                                <div class="slider-value" id="y-value">0 mm</div>
+                            </div>
+                            <div class="input-field">
+                                <label>Z Position</label>
+                                <input type="number" id="z" value="0" min="-80" max="80" step="1" oninput="calculate()">
+                                <input type="range" id="z-slider" min="-80" max="80" step="1" value="0" oninput="syncInput('z', this.value)">
+                                <div class="slider-value" id="z-value">0 mm</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label style="margin-bottom: 15px;">Rotation (degrees)</label>
+                        <div class="input-row">
+                            <div class="input-field">
+                                <label>Roll (α)</label>
+                                <input type="number" id="alpha" value="0" min="-15" max="15" step="0.5" oninput="calculate()">
+                                <input type="range" id="alpha-slider" min="-15" max="15" step="0.5" value="0" oninput="syncInput('alpha', this.value)">
+                                <div class="slider-value" id="alpha-value">0°</div>
+                            </div>
+                            <div class="input-field">
+                                <label>Pitch (β)</label>
+                                <input type="number" id="beta" value="0" min="-15" max="15" step="0.5" oninput="calculate()">
+                                <input type="range" id="beta-slider" min="-15" max="15" step="0.5" value="0" oninput="syncInput('beta', this.value)">
+                                <div class="slider-value" id="beta-value">0°</div>
+                            </div>
+                            <div class="input-field">
+                                <label>Yaw (γ)</label>
+                                <input type="number" id="gamma" value="0" min="-15" max="15" step="0.5" oninput="calculate()">
+                                <input type="range" id="gamma-slider" min="-15" max="15" step="0.5" value="0" oninput="syncInput('gamma', this.value)">
+                                <div class="slider-value" id="gamma-value">0°</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button onclick="calculate()">Calculate</button>
+                        <button class="secondary" onclick="reset()">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Results Panel -->
+                <div class="panel" style="margin-top: 20px;">
+                    <div class="panel-title">Leg Lengths</div>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <div class="result-label">Leg 1</div>
+                            <div class="result-value" id="L1">--<span class="result-unit">mm</span></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Leg 2</div>
+                            <div class="result-value" id="L2">--<span class="result-unit">mm</span></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Leg 3</div>
+                            <div class="result-value" id="L3">--<span class="result-unit">mm</span></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Leg 4</div>
+                            <div class="result-value" id="L4">--<span class="result-unit">mm</span></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Leg 5</div>
+                            <div class="result-value" id="L5">--<span class="result-unit">mm</span></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Leg 6</div>
+                            <div class="result-value" id="L6">--<span class="result-unit">mm</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-banner">
+                        <div class="info-icon">ℹ</div>
+                        <div class="info-text">
+                            <strong>Real Platform Geometry:</strong> Base joints (A–F) at Y=38.51 mm, outer radius ≈337 mm. 
+                            Platform joints (G–L) at Y=352.681 mm (home), outer radius ≈148 mm. 
+                            Platform centre home height P = 432.259 mm. Workspace: ±50 mm translation, ±15° rotation.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization Panel -->
+            <div class="panel">
+                <div class="panel-title">3D Visualization (Top View)</div>
+                <div id="canvas-container">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Initializing 3D View...
+                    </div>
+                </div>
+                
+                <!-- Transformation Matrix Display -->
+                <div class="matrix-display">
+                    <div class="matrix-title">Homogeneous Transformation Matrix</div>
+                    
+                    <div class="matrix-container">
+                        <!-- Complete 4x4 Transformation Matrix -->
+                        <div class="matrix-section">
+                            <div class="matrix-label">Complete Transformation T = [R | t]</div>
+                            <div class="matrix matrix-4x4" id="transformation-matrix">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        
+                        <!-- Rotation Matrix -->
+                        <div class="matrix-section">
+                            <div class="matrix-label">Rotation Matrix R(α,β,γ)</div>
+                            <div class="matrix matrix-3x3" id="rotation-matrix">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        
+                        <!-- Translation Vector -->
+                        <div class="matrix-section">
+                            <div class="matrix-label">Translation Vector t</div>
+                            <div class="vector-display" id="translation-vector">
+                                <div class="vector-row">
+                                    <span class="vector-label">x:</span>
+                                    <span class="vector-value" id="t-x">0.00</span>
+                                </div>
+                                <div class="vector-row">
+                                    <span class="vector-label">y:</span>
+                                    <span class="vector-value" id="t-y">0.00</span>
+                                </div>
+                                <div class="vector-row">
+                                    <span class="vector-label">z:</span>
+                                    <span class="vector-value" id="t-z">0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real Coordinates Reference Table -->
+        <div class="panel" style="margin-top: 30px;">
+            <div class="panel-title">Real Platform Geometry — Measured Coordinates</div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem; font-family:'IBM Plex Mono',monospace;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--primary);">
+                            <th style="padding:10px 16px; color:var(--accent); text-align:left;">Point</th>
+                            <th style="padding:10px 16px; color:var(--accent);">Role</th>
+                            <th style="padding:10px 16px; color:var(--primary);">X (mm)</th>
+                            <th style="padding:10px 16px; color:var(--primary);">Y (mm)</th>
+                            <th style="padding:10px 16px; color:var(--primary);">Z (mm)</th>
+                            <th style="padding:10px 16px; color:var(--accent);">Leg</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coords-table-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top:14px; font-size:0.78rem; color:var(--primary); opacity:0.7;">
+                * Platform joint coordinates shown in world frame at HOME position (Y offset = 432.259 mm). 
+                Translation inputs (X,Y,Z) are offsets from home. Leg pairing: A↔G, B↔H, C↔L, D↔K, E↔J, F↔I
+            </div>
+        </div>
+
+        <footer>
+            <p>6-UPS Stewart-Gough Platform Calculator | Neural Network Inverse Kinematics Project</p>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ============================================================
+        // REAL MEASURED GEOMETRY — From Physical Platform Survey
+        // Origin O = (0, 0, 0) at base center
+        // Coordinate system: X horizontal, Y vertical (up), Z depth
+        // ============================================================
+
+        // Base attachment points (A–F) — measured at Y = 38.51 mm
+        // Leg pairing: Leg1=A-G, Leg2=B-H, Leg3=C-L, Leg4=D-K, Leg5=E-J, Leg6=F-I
+        const basePoints = [
+            { x:  35.755, y: 38.51, z: -368.525 }, // A — Leg 1
+            { x: -35.755, y: 38.51, z: -368.525 }, // B — Leg 2
+            { x: -337.03, y: 38.51, z:  153.297 }, // C — Leg 3
+            { x: -301.274,y: 38.51, z:  215.227 }, // D — Leg 4
+            { x:  301.274,y: 38.51, z:  215.227 }, // E — Leg 5
+            { x:  337.03, y: 38.51, z:  153.297 }  // F — Leg 6
+        ];
+
+        // Platform attachment points (G–L) — measured at Y = 352.681 mm (home)
+        // These are the LOCAL (body-frame) coordinates of the platform joints
+        const platformPointsLocal = [
+            { x: -25.9,    y:   0, z:  155.646 }, // G — Leg 1 (offset from platform centre)
+            { x:  25.9,    y:   0, z:  155.646 }, // H — Leg 2
+            { x:  147.743, y:   0, z:  -55.392 }, // I — Leg 6 (re-paired below)
+            { x:  121.843, y:   0, z: -100.253 }, // J — Leg 5
+            { x: -121.843, y:   0, z: -100.253 }, // K — Leg 4
+            { x: -147.743, y:   0, z:  -55.392 }  // L — Leg 3
+        ];
+        // Reorder to match leg pairing: Leg1=G, Leg2=H, Leg3=L, Leg4=K, Leg5=J, Leg6=I
+        const platformPoints = [
+            platformPointsLocal[0], // G — Leg 1
+            platformPointsLocal[1], // H — Leg 2
+            platformPointsLocal[5], // L — Leg 3
+            platformPointsLocal[4], // K — Leg 4
+            platformPointsLocal[3], // J — Leg 5
+            platformPointsLocal[2]  // I — Leg 6
+        ];
+
+        // Platform centre home position P = (0, 432.259, 0)
+        // This is the neutral (home) Z offset for translation inputs
+        const HOME_Y = 432.259;  // mm — measured height of platform centre
+
+        // Derived radii for 3D visualisation (approximate circles fitting the real points)
+        const BASE_RADIUS   = Math.max(...basePoints.map(p => Math.sqrt(p.x*p.x + p.z*p.z)));
+        const PLATFORM_RADIUS = Math.max(...platformPointsLocal.map(p => Math.sqrt(p.x*p.x + p.z*p.z)));
+        
+        // Rotation matrices
+        function rotationX(alpha) {
+            const c = Math.cos(alpha), s = Math.sin(alpha);
+            return [
+                [1, 0, 0],
+                [0, c, -s],
+                [0, s, c]
+            ];
+        }
+        
+        function rotationY(beta) {
+            const c = Math.cos(beta), s = Math.sin(beta);
+            return [
+                [c, 0, s],
+                [0, 1, 0],
+                [-s, 0, c]
+            ];
+        }
+        
+        function rotationZ(gamma) {
+            const c = Math.cos(gamma), s = Math.sin(gamma);
+            return [
+                [c, -s, 0],
+                [s, c, 0],
+                [0, 0, 1]
+            ];
+        }
+        
+        function matrixMultiply(A, B) {
+            const result = [];
+            for (let i = 0; i < 3; i++) {
+                result[i] = [];
+                for (let j = 0; j < 3; j++) {
+                    result[i][j] = 0;
+                    for (let k = 0; k < 3; k++) {
+                        result[i][j] += A[i][k] * B[k][j];
+                    }
+                }
+            }
+            return result;
+        }
+        
+        function rotationMatrixZYX(alpha, beta, gamma) {
+            const Rx = rotationX(alpha);
+            const Ry = rotationY(beta);
+            const Rz = rotationZ(gamma);
+            return matrixMultiply(Rz, matrixMultiply(Ry, Rx));
+        }
+        
+        function transformPoint(point, R, t) {
+            return {
+                x: R[0][0] * point.x + R[0][1] * point.y + R[0][2] * point.z + t.x,
+                y: R[1][0] * point.x + R[1][1] * point.y + R[1][2] * point.z + t.y,
+                z: R[2][0] * point.x + R[2][1] * point.y + R[2][2] * point.z + t.z
+            };
+        }
+        
+        function distance(p1, p2) {
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const dz = p1.z - p2.z;
+            return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+        
+        // Calculate leg lengths using REAL geometry
+        // x,y,z = displacement from home position (mm), angles in degrees
+        function calculateLegLengths(x, y, z, alpha, beta, gamma) {
+            const aRad = alpha * Math.PI / 180;
+            const bRad = beta  * Math.PI / 180;
+            const gRad = gamma * Math.PI / 180;
+            const R = rotationMatrixZYX(aRad, bRad, gRad);
+            // Platform centre absolute = home position + commanded offset
+            const t = { x: x, y: HOME_Y + y, z: z };
+            
+            const legLengths = [];
+            const transformedPoints = [];
+            
+            for (let i = 0; i < 6; i++) {
+                const transformed = transformPoint(platformPoints[i], R, t);
+                transformedPoints.push(transformed);
+                const length = distance(transformed, basePoints[i]);
+                legLengths.push(length);
+            }
+            
+            return { legLengths, transformedPoints };
+        }
+        
+        // Sync input and slider
+        function syncInput(id, value) {
+            document.getElementById(id).value = value;
+            document.getElementById(id + '-slider').value = value;
+            const unit = ['x', 'y', 'z'].includes(id) ? ' mm' : '°';
+            document.getElementById(id + '-value').textContent = value + unit;
+            calculate();
+        }
+        
+        // Load preset configurations
+        function loadPreset(preset) {
+            const presets = {
+                neutral:  { x: 0,  y: 0,  z: 0,  alpha: 0, beta: 0,  gamma: 0  },
+                raised:   { x: 0,  y: 50, z: 0,  alpha: 0, beta: 0,  gamma: 0  },
+                tilted:   { x: 0,  y: 0,  z: 0,  alpha: 0, beta: 10, gamma: 0  },
+                combined: { x: 20, y: 30, z: 20, alpha: 5, beta: 5,  gamma: 10 }
+            };
+            
+            const config = presets[preset];
+            ['x', 'y', 'z', 'alpha', 'beta', 'gamma'].forEach(id => {
+                syncInput(id, config[id]);
+            });
+        }
+        
+        // Calculate and update display
+        function calculate() {
+            const x = parseFloat(document.getElementById('x').value) || 0;
+            const y = parseFloat(document.getElementById('y').value) || 0;
+            const z = parseFloat(document.getElementById('z').value) || 0;
+            const alpha = parseFloat(document.getElementById('alpha').value) || 0;
+            const beta = parseFloat(document.getElementById('beta').value) || 0;
+            const gamma = parseFloat(document.getElementById('gamma').value) || 0;
+            
+            const { legLengths, transformedPoints } = calculateLegLengths(x, y, z, alpha, beta, gamma);
+            
+            // Update results
+            legLengths.forEach((length, i) => {
+                document.getElementById('L' + (i + 1)).innerHTML = 
+                    length.toFixed(2) + '<span class="result-unit">mm</span>';
+            });
+            
+            // Update 3D visualization
+            updateVisualization(transformedPoints, legLengths);
+        }
+        
+        function reset() {
+            loadPreset('neutral');
+        }
+        
+        // Three.js Visualization
+        let scene, camera, renderer, platformMesh, baseMesh, legs = [];
+        
+        function initVisualization() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0e27);
+            
+            // Camera — isometric-style view of the real platform
+            camera = new THREE.PerspectiveCamera(50, width / height, 1, 5000);
+            camera.position.set(0, 600, 400); // Further back for large platform
+            camera.lookAt(0, 150, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            container.innerHTML = '';
+            container.appendChild(renderer.domElement);
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight1 = new THREE.DirectionalLight(0x00d9ff, 0.8);
+            directionalLight1.position.set(100, 200, 100);
+            scene.add(directionalLight1);
+            
+            const directionalLight2 = new THREE.DirectionalLight(0xff00ea, 0.5);
+            directionalLight2.position.set(-100, 200, -100);
+            scene.add(directionalLight2);
+            
+            const topLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            topLight.position.set(0, 300, 0);
+            scene.add(topLight);
+            
+            // Grid (horizontal reference) — scale to platform size
+            const gridHelper = new THREE.GridHelper(600, 24, 0x00d9ff, 0x333333);
+            gridHelper.position.y = 5;
+            scene.add(gridHelper);
+            
+            // Axes helper
+            const axesHelper = new THREE.AxesHelper(200);
+            scene.add(axesHelper);
+            
+            // Base platform shape — using real scaled base points
+            const sceneScaleInit = 400 / (BASE_RADIUS * 2);
+            const baseShape = new THREE.Shape();
+            basePoints.forEach((p, i) => {
+                const sx = p.x * sceneScaleInit;
+                const sz = p.z * sceneScaleInit;
+                if (i === 0) baseShape.moveTo(sx, sz);
+                else         baseShape.lineTo(sx, sz);
+            });
+            baseShape.closePath();
+            
+            const baseGeometry = new THREE.ShapeGeometry(baseShape);
+            const baseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x0066ff,
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.DoubleSide,
+                shininess: 100
+            });
+            baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+            baseMesh.rotation.x = -Math.PI / 2;
+            const baseY = 38.51 * sceneScaleInit;
+            baseMesh.position.y = baseY;
+            scene.add(baseMesh);
+            
+            // Base outline
+            const baseEdges = new THREE.EdgesGeometry(baseGeometry);
+            const baseEdgeMaterial = new THREE.LineBasicMaterial({ color: 0x00d9ff, linewidth: 2 });
+            const baseWireframe = new THREE.LineSegments(baseEdges, baseEdgeMaterial);
+            baseWireframe.rotation.x = -Math.PI / 2;
+            baseWireframe.position.y = baseY + 0.1;
+            scene.add(baseWireframe);
+            
+            // Base attachment points with labels (scaled to scene)
+            const sceneScale = 400 / (BASE_RADIUS * 2);
+            basePoints.forEach((point, i) => {
+                const geometry = new THREE.SphereGeometry(4, 16, 16);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0x00d9ff,
+                    emissive: 0x00d9ff,
+                    emissiveIntensity: 0.3
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(point.x * sceneScale, point.y * sceneScale, point.z * sceneScale);
+                scene.add(sphere);
+                
+                // Add ring around base points
+                const ringGeometry = new THREE.RingGeometry(5, 7, 16);
+                const ringMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x00d9ff, 
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.5
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = -Math.PI / 2;
+                ring.position.set(point.x * sceneScale, point.y * sceneScale + 0.2, point.z * sceneScale);
+                scene.add(ring);
+            });
+            
+            // Moving platform — using real scaled platform local points
+            const platformShape = new THREE.Shape();
+            platformPoints.forEach((p, i) => {
+                const sx = p.x * sceneScaleInit;
+                const sz = p.z * sceneScaleInit;
+                if (i === 0) platformShape.moveTo(sx, sz);
+                else         platformShape.lineTo(sx, sz);
+            });
+            platformShape.closePath();
+            
+            const platformGeometry = new THREE.ShapeGeometry(platformShape);
+            const platformMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff0066,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide,
+                shininess: 100
+            });
+            platformMesh = new THREE.Mesh(platformGeometry, platformMaterial);
+            platformMesh.rotation.x = -Math.PI / 2;
+            platformMesh.position.y = HOME_Y * sceneScaleInit;
+            scene.add(platformMesh);
+            
+            // Platform outline
+            const platformEdges = new THREE.EdgesGeometry(platformGeometry);
+            const platformEdgeMaterial = new THREE.LineBasicMaterial({ color: 0xff00ea, linewidth: 2 });
+            const platformWireframe = new THREE.LineSegments(platformEdges, platformEdgeMaterial);
+            platformMesh.add(platformWireframe);
+            
+            // Legs with cylinders for better visibility
+            for (let i = 0; i < 6; i++) {
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xffea00,
+                    emissive: 0xffea00,
+                    emissiveIntensity: 0.2
+                });
+                const geometry = new THREE.CylinderGeometry(2, 2, 10, 8);
+                const leg = new THREE.Mesh(geometry, material);
+                scene.add(leg);
+                legs.push(leg);
+            }
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Gentle rotation for better view
+                scene.rotation.y += 0.001;
+                
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+        }
+        
+        function updateVisualization(transformedPoints, legLengths) {
+            if (!platformMesh) return;
+            
+            // Update platform position
+            const x = parseFloat(document.getElementById('x').value) || 0;
+            const y = parseFloat(document.getElementById('y').value) || 0;
+            const z = parseFloat(document.getElementById('z').value) || 0;
+            const alpha = (parseFloat(document.getElementById('alpha').value) || 0) * Math.PI / 180;
+            const beta  = (parseFloat(document.getElementById('beta').value)  || 0) * Math.PI / 180;
+            const gamma = (parseFloat(document.getElementById('gamma').value) || 0) * Math.PI / 180;
+            
+            // Scale factor for visualisation (real coords are large, scene is ~400 units)
+            const S = 400 / (BASE_RADIUS * 2);
+            platformMesh.position.set(x * S, (HOME_Y + y) * S, z * S);
+            platformMesh.rotation.set(-Math.PI / 2 + alpha, gamma, beta);
+            
+            // Get rotation matrix and transformation matrix
+            const R = rotationMatrixZYX(alpha, beta, gamma);
+            updateMatrixDisplay(R, x, HOME_Y + y, z);
+            
+            // Update legs with cylinders — scale real coords to scene units
+            const S = 400 / (BASE_RADIUS * 2);
+            transformedPoints.forEach((point, i) => {
+                const basePoint = basePoints[i];
+                const platformPoint = point;
+                
+                const legLength = legLengths[i] * S;
+                const midX = (basePoint.x + platformPoint.x) / 2 * S;
+                const midY = (basePoint.y + platformPoint.y) / 2 * S;
+                const midZ = (basePoint.z + platformPoint.z) / 2 * S;
+                
+                const direction = new THREE.Vector3(
+                    (platformPoint.x - basePoint.x) * S,
+                    (platformPoint.y - basePoint.y) * S,
+                    (platformPoint.z - basePoint.z) * S
+                );
+                
+                // Remove old leg
+                scene.remove(legs[i]);
+                
+                // Create new cylinder leg
+                const geometry = new THREE.CylinderGeometry(2, 2, legLength, 8);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xffea00,
+                    emissive: 0xffea00,
+                    emissiveIntensity: 0.3,
+                    shininess: 50
+                });
+                const cylinder = new THREE.Mesh(geometry, material);
+                
+                // Position and orient the cylinder
+                cylinder.position.set(midX, midY, midZ);
+                
+                // Orient cylinder to connect points
+                const up = new THREE.Vector3(0, 1, 0);
+                const quaternion = new THREE.Quaternion();
+                quaternion.setFromUnitVectors(up, direction.normalize());
+                cylinder.setRotationFromQuaternion(quaternion);
+                
+                scene.add(cylinder);
+                legs[i] = cylinder;
+            });
+            
+            // Add/update platform attachment points
+            scene.children.filter(obj => obj.userData.isPlatformPoint).forEach(obj => scene.remove(obj));
+            const S2 = 400 / (BASE_RADIUS * 2);
+            transformedPoints.forEach(point => {
+                const geometry = new THREE.SphereGeometry(4, 16, 16);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xff00ea,
+                    emissive: 0xff00ea,
+                    emissiveIntensity: 0.3
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(point.x * S2, point.y * S2, point.z * S2);
+                sphere.userData.isPlatformPoint = true;
+                scene.add(sphere);
+                
+                // Add ring around platform points
+                const ringGeometry = new THREE.RingGeometry(5, 7, 16);
+                const ringMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xff00ea, 
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.5
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = -Math.PI / 2;
+                ring.position.set(point.x * S2, point.y * S2 + 0.2, point.z * S2);
+                ring.userData.isPlatformPoint = true;
+                scene.add(ring);
+            });
+        }
+        
+        function updateMatrixDisplay(R, x, y, z) {
+            // Update Rotation Matrix (3x3)
+            const rotationMatrixDiv = document.getElementById('rotation-matrix');
+            rotationMatrixDiv.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'matrix-cell';
+                    cell.textContent = R[i][j].toFixed(4);
+                    rotationMatrixDiv.appendChild(cell);
+                }
+            }
+            
+            // Update Complete Transformation Matrix (4x4)
+            const transformationMatrixDiv = document.getElementById('transformation-matrix');
+            transformationMatrixDiv.innerHTML = '';
+            
+            // First 3 rows: [R | t]
+            for (let i = 0; i < 3; i++) {
+                // Rotation part
+                for (let j = 0; j < 3; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'matrix-cell';
+                    cell.textContent = R[i][j].toFixed(4);
+                    transformationMatrixDiv.appendChild(cell);
+                }
+                // Translation part
+                const tCell = document.createElement('div');
+                tCell.className = 'matrix-cell';
+                const tValues = [x, y, z];
+                tCell.textContent = tValues[i].toFixed(2);
+                transformationMatrixDiv.appendChild(tCell);
+            }
+            
+            // Last row: [0 0 0 1]
+            for (let j = 0; j < 3; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'matrix-cell';
+                cell.textContent = '0.0000';
+                transformationMatrixDiv.appendChild(cell);
+            }
+            const lastCell = document.createElement('div');
+            lastCell.className = 'matrix-cell';
+            lastCell.textContent = '1.0000';
+            transformationMatrixDiv.appendChild(lastCell);
+            
+            // Update Translation Vector
+            document.getElementById('t-x').textContent = x.toFixed(2) + ' mm';
+            document.getElementById('t-y').textContent = y.toFixed(2) + ' mm';
+            document.getElementById('t-z').textContent = z.toFixed(2) + ' mm';
+        }
+        
+        // Populate real coordinates table
+        function populateCoordsTable() {
+            const tbody = document.getElementById('coords-table-body');
+            const baseNames  = ['A','B','C','D','E','F'];
+            const platNames  = ['G','H','L','K','J','I'];
+            const legPairs   = ['1 (A↔G)','2 (B↔H)','3 (C↔L)','4 (D↔K)','5 (E↔J)','6 (F↔I)'];
+            const rows = [];
+
+            // Origin
+            rows.push(`<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                <td style="padding:8px 16px; color:var(--accent); font-weight:bold;">O</td>
+                <td style="padding:8px 16px; color:var(--light); text-align:center;">Origin</td>
+                <td style="padding:8px 16px; text-align:center;">0</td>
+                <td style="padding:8px 16px; text-align:center;">0</td>
+                <td style="padding:8px 16px; text-align:center;">0</td>
+                <td style="padding:8px 16px; text-align:center;">—</td>
+            </tr>`);
+
+            // Base points A–F
+            basePoints.forEach((p, i) => {
+                rows.push(`<tr style="border-bottom:1px solid rgba(0,217,255,0.08); background:rgba(0,217,255,0.03);">
+                    <td style="padding:8px 16px; color:var(--primary); font-weight:bold;">${baseNames[i]}</td>
+                    <td style="padding:8px 16px; color:var(--light); text-align:center;">Base Joint</td>
+                    <td style="padding:8px 16px; text-align:center;">${p.x.toFixed(3)}</td>
+                    <td style="padding:8px 16px; text-align:center;">${p.y.toFixed(3)}</td>
+                    <td style="padding:8px 16px; text-align:center;">${p.z.toFixed(3)}</td>
+                    <td style="padding:8px 16px; text-align:center; color:var(--accent);">${legPairs[i]}</td>
+                </tr>`);
+            });
+
+            // Platform points (home world frame)
+            const homeT = { x: 0, y: HOME_Y, z: 0 };
+            const identR = [[1,0,0],[0,1,0],[0,0,1]];
+            platformPoints.forEach((p, i) => {
+                const wp = transformPoint(p, identR, homeT);
+                rows.push(`<tr style="border-bottom:1px solid rgba(255,0,234,0.08); background:rgba(255,0,234,0.03);">
+                    <td style="padding:8px 16px; color:var(--secondary); font-weight:bold;">${platNames[i]}</td>
+                    <td style="padding:8px 16px; color:var(--light); text-align:center;">Platform Joint</td>
+                    <td style="padding:8px 16px; text-align:center;">${wp.x.toFixed(3)}</td>
+                    <td style="padding:8px 16px; text-align:center;">${wp.y.toFixed(3)}</td>
+                    <td style="padding:8px 16px; text-align:center;">${wp.z.toFixed(3)}</td>
+                    <td style="padding:8px 16px; text-align:center; color:var(--accent);">${legPairs[i]}</td>
+                </tr>`);
+            });
+
+            // Platform centre P
+            rows.push(`<tr style="border-top:1px solid var(--primary);">
+                <td style="padding:8px 16px; color:var(--accent); font-weight:bold;">P</td>
+                <td style="padding:8px 16px; color:var(--light); text-align:center;">Platform Centre (Home)</td>
+                <td style="padding:8px 16px; text-align:center;">0</td>
+                <td style="padding:8px 16px; text-align:center;">${HOME_Y.toFixed(3)}</td>
+                <td style="padding:8px 16px; text-align:center;">0</td>
+                <td style="padding:8px 16px; text-align:center;">—</td>
+            </tr>`);
+
+            tbody.innerHTML = rows.join('');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            populateCoordsTable();
+            initVisualization();
+            calculate();
+        });
+    </script>
+</body>
+</html>
