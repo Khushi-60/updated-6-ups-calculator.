@@ -643,27 +643,27 @@
                     <div class="panel-title">Leg Lengths</div>
                     <div class="results-grid">
                         <div class="result-card">
-                            <div class="result-label">Leg 1</div>
+                            <div class="result-label">Leg 1 (A→G)</div>
                             <div class="result-value" id="L1">--<span class="result-unit">mm</span></div>
                         </div>
                         <div class="result-card">
-                            <div class="result-label">Leg 2</div>
+                            <div class="result-label">Leg 2 (B→H)</div>
                             <div class="result-value" id="L2">--<span class="result-unit">mm</span></div>
                         </div>
                         <div class="result-card">
-                            <div class="result-label">Leg 3</div>
+                            <div class="result-label">Leg 3 (C→I)</div>
                             <div class="result-value" id="L3">--<span class="result-unit">mm</span></div>
                         </div>
                         <div class="result-card">
-                            <div class="result-label">Leg 4</div>
+                            <div class="result-label">Leg 4 (D→J)</div>
                             <div class="result-value" id="L4">--<span class="result-unit">mm</span></div>
                         </div>
                         <div class="result-card">
-                            <div class="result-label">Leg 5</div>
+                            <div class="result-label">Leg 5 (E→K)</div>
                             <div class="result-value" id="L5">--<span class="result-unit">mm</span></div>
                         </div>
                         <div class="result-card">
-                            <div class="result-label">Leg 6</div>
+                            <div class="result-label">Leg 6 (F→L)</div>
                             <div class="result-value" id="L6">--<span class="result-unit">mm</span></div>
                         </div>
                     </div>
@@ -671,7 +671,8 @@
                     <div class="info-banner">
                         <div class="info-icon">ℹ</div>
                         <div class="info-text">
-                            The platform uses 100mm base radius and 80mm platform radius. 
+                            Real platform geometry loaded. Base points A–F at y=38.51mm, 
+                            Platform points G–L at y=352.681mm. Neutral height: 314.171mm.
                             Workspace: ±50mm translation, ±15° rotation.
                         </div>
                     </div>
@@ -738,101 +739,423 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
-<script>
-// ===============================
-// REAL EXPERIMENTAL GEOMETRY
-// ===============================
+    <script>
+        // ─────────────────────────────────────────────────────────────────────────
+        // REAL PLATFORM GEOMETRY – coordinates from measured data
+        // The source table uses (x, y, z) with y as the vertical/height axis.
+        // Base points A–F are fixed at y = 38.51 mm (floor level).
+        // Platform points G–L are at y = 352.681 mm in the home/neutral pose.
+        // The neutral height of the platform centre above the base centre is
+        //   352.681 – 38.51 = 314.171 mm.
+        // ─────────────────────────────────────────────────────────────────────────
 
-const basePoints = [
-    { x: 35.755,  y: 38.51,  z: -368.525 },
-    { x: -35.755, y: 38.51,  z: -368.525 },
-    { x: -337.03, y: 38.51,  z: 153.297 },
-    { x: -301.274,y: 38.51,  z: 215.227 },
-    { x: 301.274, y: 38.51,  z: 215.227 },
-    { x: 337.03,  y: 38.51,  z: 153.297 }
-];
+        // Base attachment points (fixed, in world frame)
+        // Order: A, B, C, D, E, F  →  legs 1–6
+        const basePoints = [
+            { x:  35.755,  y: 38.51,  z: -368.525 },  // A – Leg 1
+            { x: -35.755,  y: 38.51,  z: -368.525 },  // B – Leg 2
+            { x: -337.03,  y: 38.51,  z:  153.297 },  // C – Leg 3
+            { x: -301.274, y: 38.51,  z:  215.227 },  // D – Leg 4
+            { x:  301.274, y: 38.51,  z:  215.227 },  // E – Leg 5
+            { x:  337.03,  y: 38.51,  z:  153.297 },  // F – Leg 6
+        ];
 
-const platformPointsGlobal = [
-    { x: -25.9,   y: 352.681, z: 155.646 },
-    { x: 25.9,    y: 352.681, z: 155.646 },
-    { x: 147.743, y: 352.681, z: -55.392 },
-    { x: 121.843, y: 352.681, z: -100.253 },
-    { x: -121.843,y: 352.681, z: -100.253 },
-    { x: -147.743,y: 352.681, z: -55.392 }
-];
+        // Platform attachment points expressed in the PLATFORM's LOCAL frame
+        // (centred at P = (0, 432.259, 0) in the home pose).
+        // We store them relative to the platform centre so we can apply the
+        // rotation + translation transform during IK.
+        //
+        // Home position of platform centre in world frame:
+        const PLATFORM_HOME = { x: 0, y: 432.259, z: 0 };
 
-const PLATFORM_CENTER = { x: 0, y: 432.259, z: 0 };
+        // Platform points in local (body) frame – subtract home centre:
+        const platformPoints = [
+            { x:  -25.9   - 0, y: 352.681 - 432.259, z:  155.646 - 0 },  // G – Leg 1
+            { x:   25.9   - 0, y: 352.681 - 432.259, z:  155.646 - 0 },  // H – Leg 2
+            { x:  147.743 - 0, y: 352.681 - 432.259, z:  -55.392 - 0 },  // I – Leg 3
+            { x:  121.843 - 0, y: 352.681 - 432.259, z: -100.253 - 0 },  // J – Leg 4
+            { x: -121.843 - 0, y: 352.681 - 432.259, z: -100.253 - 0 },  // K – Leg 5
+            { x: -147.743 - 0, y: 352.681 - 432.259, z:  -55.392 - 0 },  // L – Leg 6
+        ];
+        // Simplified (numeric):
+        // G: (-25.9,  -79.578, 155.646)
+        // H: ( 25.9,  -79.578, 155.646)
+        // I: (147.743,-79.578, -55.392)
+        // J: (121.843,-79.578,-100.253)
+        // K: (-121.843,-79.578,-100.253)
+        // L: (-147.743,-79.578, -55.392)
 
-const platformPoints = platformPointsGlobal.map(pt => ({
-    x: pt.x - PLATFORM_CENTER.x,
-    y: pt.y - PLATFORM_CENTER.y,
-    z: pt.z - PLATFORM_CENTER.z
-}));
-
-function rotationX(a){const c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
-function rotationY(b){const c=Math.cos(b),s=Math.sin(b);return [[c,0,s],[0,1,0],[-s,0,c]];}
-function rotationZ(g){const c=Math.cos(g),s=Math.sin(g);return [[c,-s,0],[s,c,0],[0,0,1]];}
-
-function matrixMultiply(A,B){
-    const r=[];
-    for(let i=0;i<3;i++){
-        r[i]=[];
-        for(let j=0;j<3;j++){
-            r[i][j]=0;
-            for(let k=0;k<3;k++){ r[i][j]+=A[i][k]*B[k][j]; }
+        // ─────────────────────────────────────────────────────────────────────────
+        // Rotation matrices (ZYX convention)
+        // ─────────────────────────────────────────────────────────────────────────
+        function rotationX(alpha) {
+            const c = Math.cos(alpha), s = Math.sin(alpha);
+            return [[1,0,0],[0,c,-s],[0,s,c]];
         }
-    }
-    return r;
-}
+        function rotationY(beta) {
+            const c = Math.cos(beta), s = Math.sin(beta);
+            return [[c,0,s],[0,1,0],[-s,0,c]];
+        }
+        function rotationZ(gamma) {
+            const c = Math.cos(gamma), s = Math.sin(gamma);
+            return [[c,-s,0],[s,c,0],[0,0,1]];
+        }
+        function matMul(A, B) {
+            const R = [];
+            for (let i = 0; i < 3; i++) {
+                R[i] = [];
+                for (let j = 0; j < 3; j++) {
+                    R[i][j] = 0;
+                    for (let k = 0; k < 3; k++) R[i][j] += A[i][k] * B[k][j];
+                }
+            }
+            return R;
+        }
+        function rotationMatrixZYX(alpha, beta, gamma) {
+            return matMul(rotationZ(gamma), matMul(rotationY(beta), rotationX(alpha)));
+        }
 
-function rotationMatrixZYX(a,b,g){
-    return matrixMultiply(rotationZ(g),matrixMultiply(rotationY(b),rotationX(a)));
-}
+        // Transform a point from platform local frame to world frame
+        // World position = R * p_local + t_world
+        // where t_world = PLATFORM_HOME + user_translation
+        function transformPoint(point, R, t) {
+            return {
+                x: R[0][0]*point.x + R[0][1]*point.y + R[0][2]*point.z + t.x,
+                y: R[1][0]*point.x + R[1][1]*point.y + R[1][2]*point.z + t.y,
+                z: R[2][0]*point.x + R[2][1]*point.y + R[2][2]*point.z + t.z
+            };
+        }
 
-function transformPoint(p,R,t){
-    return {
-        x:R[0][0]*p.x + R[0][1]*p.y + R[0][2]*p.z + t.x,
-        y:R[1][0]*p.x + R[1][1]*p.y + R[1][2]*p.z + t.y,
-        z:R[2][0]*p.x + R[2][1]*p.y + R[2][2]*p.z + t.z
-    };
-}
+        function distance(p1, p2) {
+            const dx = p1.x-p2.x, dy = p1.y-p2.y, dz = p1.z-p2.z;
+            return Math.sqrt(dx*dx + dy*dy + dz*dz);
+        }
 
-function distance(p1,p2){
-    return Math.sqrt(
-        (p1.x-p2.x)**2 +
-        (p1.y-p2.y)**2 +
-        (p1.z-p2.z)**2
-    );
-}
+        // ─────────────────────────────────────────────────────────────────────────
+        // Core IK: compute 6 leg lengths for a given 6-DOF pose
+        // The user translation is applied ON TOP of the neutral home position.
+        // ─────────────────────────────────────────────────────────────────────────
+        function calculateLegLengths(tx, ty, tz, alpha, beta, gamma) {
+            alpha = alpha * Math.PI / 180;
+            beta  = beta  * Math.PI / 180;
+            gamma = gamma * Math.PI / 180;
 
-function calculateLegLengths(x,y,z,alpha,beta,gamma){
-    alpha*=Math.PI/180;
-    beta*=Math.PI/180;
-    gamma*=Math.PI/180;
+            const R = rotationMatrixZYX(alpha, beta, gamma);
 
-    const R=rotationMatrixZYX(alpha,beta,gamma);
-    const t={x,y,z};
+            // World-frame platform centre = home + user delta
+            const t = {
+                x: PLATFORM_HOME.x + tx,
+                y: PLATFORM_HOME.y + ty,
+                z: PLATFORM_HOME.z + tz
+            };
 
-    const legLengths=[];
-    const transformedPoints=[];
+            const legLengths = [];
+            const transformedPoints = [];
 
-    for(let i=0;i<6;i++){
-        const rotated=transformPoint(platformPoints[i],R,{x:0,y:0,z:0});
+            for (let i = 0; i < 6; i++) {
+                const worldPt = transformPoint(platformPoints[i], R, t);
+                transformedPoints.push(worldPt);
+                legLengths.push(distance(worldPt, basePoints[i]));
+            }
+            return { legLengths, transformedPoints };
+        }
 
-        const transformed={
-            x:rotated.x + PLATFORM_CENTER.x + t.x,
-            y:rotated.y + PLATFORM_CENTER.y + t.y,
-            z:rotated.z + PLATFORM_CENTER.z + t.z
-        };
+        // ─────────────────────────────────────────────────────────────────────────
+        // UI helpers
+        // ─────────────────────────────────────────────────────────────────────────
+        function syncInput(id, value) {
+            document.getElementById(id).value = value;
+            document.getElementById(id + '-slider').value = value;
+            const unit = ['x','y','z'].includes(id) ? ' mm' : '°';
+            document.getElementById(id + '-value').textContent = value + unit;
+            calculate();
+        }
 
-        transformedPoints.push(transformed);
-        legLengths.push(distance(transformed,basePoints[i]));
-    }
+        function loadPreset(preset) {
+            const presets = {
+                neutral:  { x:0,  y:0,  z:0,  alpha:0, beta:0,  gamma:0  },
+                raised:   { x:0,  y:30, z:0,  alpha:0, beta:0,  gamma:0  },
+                tilted:   { x:0,  y:0,  z:0,  alpha:0, beta:10, gamma:0  },
+                combined: { x:10, y:20, z:10, alpha:5, beta:5,  gamma:10 }
+            };
+            const cfg = presets[preset];
+            ['x','y','z','alpha','beta','gamma'].forEach(id => syncInput(id, cfg[id]));
+        }
 
-    return {legLengths,transformedPoints};
-}
-</script>
+        function calculate() {
+            const x     = parseFloat(document.getElementById('x').value)     || 0;
+            const y     = parseFloat(document.getElementById('y').value)     || 0;
+            const z     = parseFloat(document.getElementById('z').value)     || 0;
+            const alpha = parseFloat(document.getElementById('alpha').value) || 0;
+            const beta  = parseFloat(document.getElementById('beta').value)  || 0;
+            const gamma = parseFloat(document.getElementById('gamma').value) || 0;
 
+            const { legLengths, transformedPoints } = calculateLegLengths(x, y, z, alpha, beta, gamma);
+
+            legLengths.forEach((len, i) => {
+                document.getElementById('L' + (i+1)).innerHTML =
+                    len.toFixed(2) + '<span class="result-unit">mm</span>';
+            });
+
+            updateVisualization(transformedPoints, legLengths);
+        }
+
+        function reset() { loadPreset('neutral'); }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Three.js Visualization
+        // NOTE: Three.js uses Y-up. The table data also uses Y-up, so we map
+        //       table (x,y,z)  →  Three.js (x, y, z) directly.
+        // ─────────────────────────────────────────────────────────────────────────
+        let scene, camera, renderer, platformMesh, baseMesh, legs = [];
+
+        function initVisualization() {
+            const container = document.getElementById('canvas-container');
+            const width  = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0e27);
+
+            // Camera positioned to see the full structure
+            camera = new THREE.PerspectiveCamera(50, width/height, 1, 5000);
+            camera.position.set(0, 800, 600);
+            camera.lookAt(0, 200, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            container.innerHTML = '';
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dl1 = new THREE.DirectionalLight(0x00d9ff, 0.8);
+            dl1.position.set(300, 600, 300);
+            scene.add(dl1);
+            const dl2 = new THREE.DirectionalLight(0xff00ea, 0.5);
+            dl2.position.set(-300, 600, -300);
+            scene.add(dl2);
+            const topLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            topLight.position.set(0, 800, 0);
+            scene.add(topLight);
+
+            // Grid at ground level (y ≈ 0)
+            const gridHelper = new THREE.GridHelper(1200, 24, 0x00d9ff, 0x333333);
+            gridHelper.position.y = 0;
+            scene.add(gridHelper);
+
+            // Axes helper
+            const axesHelper = new THREE.AxesHelper(300);
+            scene.add(axesHelper);
+
+            // ── Base platform polygon ──────────────────────────────────────────
+            const baseShape = new THREE.Shape();
+            basePoints.forEach((p, i) => {
+                if (i === 0) baseShape.moveTo(p.x, p.z);   // XZ plane for Shape
+                else         baseShape.lineTo(p.x, p.z);
+            });
+            baseShape.closePath();
+
+            const baseGeo = new THREE.ShapeGeometry(baseShape);
+            const baseMat = new THREE.MeshPhongMaterial({
+                color: 0x0066ff, transparent: true, opacity: 0.35,
+                side: THREE.DoubleSide, shininess: 100
+            });
+            baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            baseMesh.rotation.x = -Math.PI / 2;
+            baseMesh.position.y = basePoints[0].y;  // 38.51
+            scene.add(baseMesh);
+
+            // Base outline
+            const baseEdgeGeo = new THREE.EdgesGeometry(baseGeo);
+            const baseEdgeMat = new THREE.LineBasicMaterial({ color: 0x00d9ff });
+            const baseWire = new THREE.LineSegments(baseEdgeGeo, baseEdgeMat);
+            baseWire.rotation.x = -Math.PI / 2;
+            baseWire.position.y = basePoints[0].y + 0.5;
+            scene.add(baseWire);
+
+            // Base attachment spheres
+            basePoints.forEach(p => {
+                const geo = new THREE.SphereGeometry(5, 16, 16);
+                const mat = new THREE.MeshPhongMaterial({
+                    color: 0x00d9ff, emissive: 0x00d9ff, emissiveIntensity: 0.3
+                });
+                const s = new THREE.Mesh(geo, mat);
+                s.position.set(p.x, p.y, p.z);
+                scene.add(s);
+            });
+
+            // ── Moving platform polygon (built from LOCAL coords) ─────────────
+            const platformShape = new THREE.Shape();
+            platformPoints.forEach((p, i) => {
+                if (i === 0) platformShape.moveTo(p.x, p.z);
+                else         platformShape.lineTo(p.x, p.z);
+            });
+            platformShape.closePath();
+
+            const platGeo = new THREE.ShapeGeometry(platformShape);
+            const platMat = new THREE.MeshPhongMaterial({
+                color: 0xff0066, transparent: true, opacity: 0.5,
+                side: THREE.DoubleSide, shininess: 100
+            });
+            platformMesh = new THREE.Mesh(platGeo, platMat);
+            platformMesh.rotation.x = -Math.PI / 2;
+
+            // Platform outline (child of platform mesh)
+            const platEdgeGeo = new THREE.EdgesGeometry(platGeo);
+            const platEdgeMat = new THREE.LineBasicMaterial({ color: 0xff00ea });
+            platformMesh.add(new THREE.LineSegments(platEdgeGeo, platEdgeMat));
+            scene.add(platformMesh);
+
+            // ── Legs (cylinders, updated each frame) ─────────────────────────
+            for (let i = 0; i < 6; i++) {
+                const mat = new THREE.MeshPhongMaterial({
+                    color: 0xffea00, emissive: 0xffea00, emissiveIntensity: 0.2
+                });
+                const geo = new THREE.CylinderGeometry(3, 3, 10, 8);
+                const leg = new THREE.Mesh(geo, mat);
+                scene.add(leg);
+                legs.push(leg);
+            }
+
+            // Animation
+            function animate() {
+                requestAnimationFrame(animate);
+                scene.rotation.y += 0.001;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth, h = container.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+        }
+
+        function updateVisualization(transformedPoints, legLengths) {
+            if (!platformMesh) return;
+
+            const tx    = parseFloat(document.getElementById('x').value)     || 0;
+            const ty    = parseFloat(document.getElementById('y').value)     || 0;
+            const tz    = parseFloat(document.getElementById('z').value)     || 0;
+            const alpha = (parseFloat(document.getElementById('alpha').value)||0)*Math.PI/180;
+            const beta  = (parseFloat(document.getElementById('beta').value) ||0)*Math.PI/180;
+            const gamma = (parseFloat(document.getElementById('gamma').value)||0)*Math.PI/180;
+
+            // Platform centre in world frame
+            const cx = PLATFORM_HOME.x + tx;
+            const cy = PLATFORM_HOME.y + ty;
+            const cz = PLATFORM_HOME.z + tz;
+
+            // Position platform mesh (XZ plane shape → rotate, then move to world Y)
+            platformMesh.position.set(cx, cy, cz);
+            // Euler order XYZ applied to a shape that starts in XZ plane:
+            platformMesh.rotation.set(-Math.PI/2 + alpha, gamma, beta);
+
+            // Update transformation matrix display
+            const R = rotationMatrixZYX(alpha, beta, gamma);
+            updateMatrixDisplay(R, tx, ty, tz);
+
+            // Update legs
+            transformedPoints.forEach((wp, i) => {
+                const bp = basePoints[i];
+                const len = legLengths[i];
+
+                // Midpoint
+                const mx = (bp.x + wp.x) / 2;
+                const my = (bp.y + wp.y) / 2;
+                const mz = (bp.z + wp.z) / 2;
+
+                // Direction
+                const dir = new THREE.Vector3(wp.x-bp.x, wp.y-bp.y, wp.z-bp.z);
+
+                // Remove old leg, build new cylinder
+                scene.remove(legs[i]);
+                const geo = new THREE.CylinderGeometry(3, 3, len, 8);
+                const mat = new THREE.MeshPhongMaterial({
+                    color: 0xffea00, emissive: 0xffea00, emissiveIntensity: 0.3
+                });
+                const cyl = new THREE.Mesh(geo, mat);
+                cyl.position.set(mx, my, mz);
+
+                const up = new THREE.Vector3(0, 1, 0);
+                const q  = new THREE.Quaternion();
+                q.setFromUnitVectors(up, dir.normalize());
+                cyl.setRotationFromQuaternion(q);
+
+                scene.add(cyl);
+                legs[i] = cyl;
+            });
+
+            // Update platform attachment point spheres
+            scene.children
+                .filter(o => o.userData.isPlatformPoint)
+                .forEach(o => scene.remove(o));
+
+            transformedPoints.forEach(wp => {
+                const geo = new THREE.SphereGeometry(5, 16, 16);
+                const mat = new THREE.MeshPhongMaterial({
+                    color: 0xff00ea, emissive: 0xff00ea, emissiveIntensity: 0.3
+                });
+                const s = new THREE.Mesh(geo, mat);
+                s.position.set(wp.x, wp.y, wp.z);
+                s.userData.isPlatformPoint = true;
+                scene.add(s);
+            });
+        }
+
+        function updateMatrixDisplay(R, x, y, z) {
+            // 3×3 Rotation Matrix
+            const rotDiv = document.getElementById('rotation-matrix');
+            rotDiv.innerHTML = '';
+            for (let i = 0; i < 3; i++)
+                for (let j = 0; j < 3; j++) {
+                    const c = document.createElement('div');
+                    c.className = 'matrix-cell';
+                    c.textContent = R[i][j].toFixed(4);
+                    rotDiv.appendChild(c);
+                }
+
+            // 4×4 Homogeneous Matrix
+            const tDiv = document.getElementById('transformation-matrix');
+            tDiv.innerHTML = '';
+            const tv = [x, y, z];
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const c = document.createElement('div');
+                    c.className = 'matrix-cell';
+                    c.textContent = R[i][j].toFixed(4);
+                    tDiv.appendChild(c);
+                }
+                const tc = document.createElement('div');
+                tc.className = 'matrix-cell';
+                tc.textContent = tv[i].toFixed(2);
+                tDiv.appendChild(tc);
+            }
+            for (let j = 0; j < 3; j++) {
+                const c = document.createElement('div');
+                c.className = 'matrix-cell';
+                c.textContent = '0.0000';
+                tDiv.appendChild(c);
+            }
+            const lc = document.createElement('div');
+            lc.className = 'matrix-cell';
+            lc.textContent = '1.0000';
+            tDiv.appendChild(lc);
+
+            // Translation vector
+            document.getElementById('t-x').textContent = x.toFixed(2) + ' mm';
+            document.getElementById('t-y').textContent = y.toFixed(2) + ' mm';
+            document.getElementById('t-z').textContent = z.toFixed(2) + ' mm';
+        }
+
+        // ── Boot ──────────────────────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            initVisualization();
+            calculate();
+        });
+    </script>
 </body>
 </html>
